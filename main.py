@@ -22,7 +22,7 @@ void main()
 		-sinx , 0.0 , cosx
 	);
 	frag_texcoord = texcoord;
-	gl_Position = vec4( rot_mat * position * 0.1 , 1.0 );
+	gl_Position = vec4( rot_mat * position * 0.8 , 1.0 );
 }
 """
 
@@ -37,15 +37,80 @@ void main()
 class Vertex( object ) :
 	def __init__( self , attributes = [] ) :
 		self.attributes = attributes
-		self.neighbors = [ ]
-	def addNeighbor(self , vertex):
+		#self.neighbors = [ ]
+	"""def addNeighbor(self , vertex):
 		self.neighbors.append(vertex)
-		return self
-class Mesh:
+		return self"""
+	def getPos(self):
+		return self.attributes[ 0 ]
+	def lerp(self,vertex,x):
+		out = Vertex()
+		for i in range( 0 , len( self.attributes ) ) :
+			out.attributes.append( self.attributes[ i ].lerp( vertex.attributes[ i ] ) )
+		return out
+class Face:
+	def __init__(self,vertecies):
+		self.vertecies = vertecies
+		self.normal = vertecies[ 1 ]\
+			.sub( vertecies[ 0 ] ).vecx(
+			vertecies[ 2 ]
+			.sub( vertecies[ 0 ] )
+		).norm()
+class FaceMesh:
+	def __init__(self,faces):
+		self.faces = faces
+class VertexMesh:
 	def __init__(self, vertex_layout , vertecies , indecies):
 		self.vertex_layout = vertex_layout
 		self.vertecies = vertecies
 		self.indecies = indecies
+	def getFaceCount(self):
+		return len( self.indecies ) / 3
+	def getFace(self,i):
+		return [ self.vertecies[ self.indecies[ i * 3 ] ] ,
+				self.vertecies[ self.indecies[ i * 3 + 1 ] ] ,
+				self.vertecies[ self.indecies[ i * 3 + 2 ] ] ]
+def sliceMesh( mesh , pos , norm ) :
+	faces = []
+	vertecies = set()
+	for i in range( 0 , mesh.getFaceCount() ) :
+		face = mesh.getFace( i )
+		above = []
+		beneath = []
+		for vertex in face :
+			dist = vertex.attributes[ 0 ].sub( pos ).dot( norm )
+			if lside < 0.0 :
+				beneath.append( [ vertex , dist ] )
+			else :
+				above.append( [ vertex , dist ] )
+		if len( beneath ) != 3 and bc != 0 :
+			if len( beneath ) == 1 :
+				k0 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 0 ][ 1 ] )
+				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
+				k1 = above[ 1 ][ 1 ] / ( above[ 1 ][ 1 ] + beneath[ 0 ][ 1 ] )
+				vertex1 = above[ 1 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
+				faces.append( [ above[ 0 ][ 0 ] , vertex0 , vertex1 ] )
+				faces.append( [ above[ 1 ][ 0 ] , above[ 0 ][ 0 ] , vertex1 ] )
+				vertecies.add( above[ 0 ][ 0 ] )
+				vertecies.add( above[ 1 ][ 0 ] )
+				vertecies.add( vertex0 )
+				vertecies.add( vertex1 )
+			else :
+				k0 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 0 ][ 1 ] )
+				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
+				k1 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 1 ][ 1 ] )
+				vertex1 = above[ 0 ][ 0 ].lerp( beneath[ 1 ][ 0 ] , k0 )
+				faces.append( [ above[ 0 ][ 0 ] , vertex0 , vertex1 ] )
+				vertecies.add( above[ 0 ][ 0 ] )
+				vertecies.add( vertex0 )
+				vertecies.add( vertex1 )
+		else :
+			faces.append( face )
+			vertecies.add( face[ 0 ] )
+			vertecies.add( face[ 1 ] )
+			vertecies.add( face[ 2 ] )
+	for face in faces :
+
 class MeshGL( object ) :
 	def __init__( self ) :
 		self.vao = 0
@@ -137,10 +202,12 @@ def loadObj( filename ) :
 		i0 = indecies[ i * 3 ]
 		i1 = indecies[  i * 3 + 1 ]
 		i2 = indecies[ i * 3 + 2 ]
-		vertecies[ i0 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i2 ] )
+		"""vertecies[ i0 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i2 ] )
 		vertecies[ i1 ].addNeighbor( vertecies[ i0 ] ).addNeighbor( vertecies[ i2 ] )
-		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )
-	return Mesh( { "position" : 3 , "texcoord" : 2 } , vertecies , indecies )
+		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )"""
+	return VertexMesh( { "position" : 3 , "texcoord" : 2 } , vertecies , indecies )
+mesh = loadObj( "lhead.obj " )
+slice( mesh , vec3( 0.0 , 0.0 , 0.0 ) , vec3( 0.0 , 0.0 , 1.0 ) )
 class WfWidget( QGLWidget ) :
 	def __init__( self , glformat , parent = None ) :
 		super( WfWidget , self ).__init__( glformat , parent )
@@ -172,7 +239,7 @@ class WfWidget( QGLWidget ) :
 			OpenGL.GL.shaders.compileShader( vertex_shader , GL_VERTEX_SHADER ) ,
 			OpenGL.GL.shaders.compileShader( fragment_shader , GL_FRAGMENT_SHADER )
 		)
-		self.mesh.init( self.shader , loadObj( "lowpoly.obj " ) )
+		self.mesh.init( self.shader , mesh )
 if __name__ == '__main__' :
 	app = QtGui.QApplication( [ "Winfred's PyQt OpenGL" ] )
 	glformat = QGLFormat( )
