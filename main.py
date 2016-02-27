@@ -109,9 +109,20 @@ def sliceMesh( mesh , pos , norm ) :
 			vertecies.add( face[ 0 ] )
 			vertecies.add( face[ 1 ] )
 			vertecies.add( face[ 2 ] )
+	index_map = {}
+	counter = 0
+	vertecies_out = []
+	indecies_out = []
+	for vertex in vertecies :
+		index_map[ vertex ] = counter
+		vertecies_out.append( vertex )
+		counter += 1
 	for face in faces :
+		for vertex in face :
+			indecies_out.append( index_map[ vertex ] )
+	return VertexMesh( mesh.vertex_layout , vertecies_out , indecies_out )
 
-class MeshGL( object ) :
+class MeshGL:
 	def __init__( self ) :
 		self.vao = 0
 		self.vbo = 0
@@ -206,8 +217,8 @@ def loadObj( filename ) :
 		vertecies[ i1 ].addNeighbor( vertecies[ i0 ] ).addNeighbor( vertecies[ i2 ] )
 		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )"""
 	return VertexMesh( { "position" : 3 , "texcoord" : 2 } , vertecies , indecies )
-mesh = loadObj( "lhead.obj " )
-slice( mesh , vec3( 0.0 , 0.0 , 0.0 ) , vec3( 0.0 , 0.0 , 1.0 ) )
+mesh = loadObj( "lhead.OBJ" )
+#slice( mesh , vec3( 0.0 , 0.0 , 0.0 ) , vec3( 0.0 , 0.0 , 1.0 ) )
 class WfWidget( QGLWidget ) :
 	def __init__( self , glformat , parent = None ) :
 		super( WfWidget , self ).__init__( glformat , parent )
