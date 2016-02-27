@@ -22,16 +22,17 @@ void main()
 		-sinx , 0.0 , cosx
 	);
 	frag_texcoord = texcoord;
-	gl_Position = vec4( rot_mat * position * 0.8 , 1.0 );
+	gl_Position = vec4( /*rot_mat */ position * 0.8 , 1.0 );
 }
 """
 
 fragment_shader = """
 #version 330
+uniform vec4 color;
 in vec2 frag_texcoord;
 void main()
 {
-   gl_FragColor = vec4( frag_texcoord , 1.0f , 1.0f );
+   gl_FragColor = color;//vec4( color , 0.2f );
 }
 """
 class Vertex( object ) :
@@ -44,9 +45,9 @@ class Vertex( object ) :
 	def getPos(self):
 		return self.attributes[ 0 ]
 	def lerp(self,vertex,x):
-		out = Vertex()
+		out = Vertex( [] )
 		for i in range( 0 , len( self.attributes ) ) :
-			out.attributes.append( self.attributes[ i ].lerp( vertex.attributes[ i ] ) )
+			out.attributes.append( self.attributes[ i ].lerp( vertex.attributes[ i ] , x ) )
 		return out
 class Face:
 	def __init__(self,vertecies):
@@ -78,12 +79,12 @@ def sliceMesh( mesh , pos , norm ) :
 		above = []
 		beneath = []
 		for vertex in face :
-			dist = vertex.attributes[ 0 ].sub( pos ).dot( norm )
-			if lside < 0.0 :
-				beneath.append( [ vertex , dist ] )
+			dist = vertex.getPos().sub( pos ).dot( norm )
+			if dist < 0.0 :
+				beneath.append( [ vertex , -dist ] )
 			else :
 				above.append( [ vertex , dist ] )
-		if len( beneath ) != 3 and bc != 0 :
+		if len( beneath ) != 0 :
 			if len( beneath ) == 1 :
 				k0 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 0 ][ 1 ] )
 				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
@@ -95,11 +96,11 @@ def sliceMesh( mesh , pos , norm ) :
 				vertecies.add( above[ 1 ][ 0 ] )
 				vertecies.add( vertex0 )
 				vertecies.add( vertex1 )
-			else :
+			if len( beneath ) == 2 :
 				k0 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 0 ][ 1 ] )
 				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
 				k1 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 1 ][ 1 ] )
-				vertex1 = above[ 0 ][ 0 ].lerp( beneath[ 1 ][ 0 ] , k0 )
+				vertex1 = above[ 0 ][ 0 ].lerp( beneath[ 1 ][ 0 ] , k1 )
 				faces.append( [ above[ 0 ][ 0 ] , vertex0 , vertex1 ] )
 				vertecies.add( above[ 0 ][ 0 ] )
 				vertecies.add( vertex0 )
@@ -141,7 +142,8 @@ class MeshGL:
 		raw_mapping = glMapBufferRange( GL_ARRAY_BUFFER , 0 , buffer_size , GL_MAP_WRITE_BIT )
 		float_mapping = ctypes.cast( raw_mapping , ctypes.POINTER( ctypes.c_float * ( vertex_count * vertex_size_in_floats ) ) )[ 0 ]
 		buffer_pos = 0
-		for ( id , vertex ) in Mesh.vertecies.iteritems() :
+		for vid in range( 0 , len( Mesh.vertecies ) ) :
+			vertex = Mesh.vertecies[ vid ]
 			for i in range( 0 , len( vertex.attributes ) ) :
 				attribute = vertex.attributes[ i ]
 				float_arr = attribute.asFloatArr()
@@ -168,11 +170,12 @@ class MeshGL:
 		glBindBuffer( GL_ARRAY_BUFFER , 0 )
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER , 0 )
 	def release(self):
-		glDeleteBuffers( 1 , [ self.vbo ] )
+		glDeleteBuffers( 2 , [ self.vbo , self.ibo ] )
 		glDeleteVertexArrays( 1 , [ self.vao ] )
 	def draw( self ) :
+		glPolygonMode( GL_FRONT_AND_BACK , GL_LINE )
 		glBindVertexArray( self.vao )
-		glDrawElements( GL_LINES , self.index_size , GL_UNSIGNED_INT , None )
+		glDrawElements( GL_TRIANGLES , self.index_size , GL_UNSIGNED_INT , None )
 		glBindVertexArray( 0 )
 def loadObj( filename ) :
 	positions = [ ]
@@ -217,12 +220,13 @@ def loadObj( filename ) :
 		vertecies[ i1 ].addNeighbor( vertecies[ i0 ] ).addNeighbor( vertecies[ i2 ] )
 		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )"""
 	return VertexMesh( { "position" : 3 , "texcoord" : 2 } , vertecies , indecies )
-mesh = loadObj( "lhead.OBJ" )
+mesh_origin = loadObj( "lhead.OBJ" )
 #slice( mesh , vec3( 0.0 , 0.0 , 0.0 ) , vec3( 0.0 , 0.0 , 1.0 ) )
 class WfWidget( QGLWidget ) :
 	def __init__( self , glformat , parent = None ) :
 		super( WfWidget , self ).__init__( glformat , parent )
-		self.mesh = MeshGL( )
+		self.meshgl_origin = MeshGL( )
+		self.meshgl = MeshGL( )
 		self.shader = 0
 		self.time = time.clock()
 		self.dt = 0.0
@@ -234,9 +238,19 @@ class WfWidget( QGLWidget ) :
 	def paintGL( self ) :
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 		self.updateTime()
+		#self.time = 2.1
 		glUseProgram( self.shader )
 		glUniform1f( glGetUniformLocation( self.shader , "angle" ) , self.time )
-		self.mesh.draw( )
+		self.meshgl.release()
+		import math
+		mesh = sliceMesh( mesh_origin ,
+		vec3( 0.0 , 0.0 , 0.0 ) ,
+		vec3( math.sin( self.time ) , 0.0 , math.cos( self.time ) ) )
+		self.meshgl.init( self.shader , mesh )
+		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 1.0 , 0.0 , 0.0 ,1.0 )
+		self.meshgl.draw( )
+		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 1.0 , 1.0 , 1.0 , 0.1 )
+		self.meshgl_origin.draw( )
 		self.update()
 
 	def resizeGL( self , w , h ) :
@@ -245,12 +259,15 @@ class WfWidget( QGLWidget ) :
 		glClearColor( 0.0 , 0.0 , 0.0 , 1.0 )
 		glClearDepth( 1.0 )
 		glEnable( GL_DEPTH_TEST )
+		glEnable( GL_BLEND )
+		glBlendFunc( GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA )
 		glClear( GL_COLOR_BUFFER_BIT )
 		self.shader = OpenGL.GL.shaders.compileProgram(
 			OpenGL.GL.shaders.compileShader( vertex_shader , GL_VERTEX_SHADER ) ,
 			OpenGL.GL.shaders.compileShader( fragment_shader , GL_FRAGMENT_SHADER )
 		)
-		self.mesh.init( self.shader , mesh )
+		self.meshgl_origin.init( self.shader , mesh_origin )
+		self.meshgl.init( self.shader , mesh_origin )
 if __name__ == '__main__' :
 	app = QtGui.QApplication( [ "Winfred's PyQt OpenGL" ] )
 	glformat = QGLFormat( )
