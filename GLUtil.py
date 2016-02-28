@@ -51,7 +51,7 @@ class MeshGL:
 		glDeleteBuffers( 2 , [ self.vbo , self.ibo ] )
 		glDeleteVertexArrays( 1 , [ self.vao ] )
 	def draw( self , mode = "SOLID" ) :
-		if mode == "SOLID" :
+		if mode == "FILL" :
 			glPolygonMode( GL_FRONT_AND_BACK , GL_FILL )
 		else :
 			glPolygonMode( GL_FRONT_AND_BACK , GL_LINE )
