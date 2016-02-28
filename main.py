@@ -62,10 +62,14 @@ class WfWidget( QGLWidget ) :
 		glUniform1f( glGetUniformLocation( self.shader , "angle" ) , self.time )
 		self.meshgl.release()
 		import math
-
+		cosx = math.cos( self.time )
+		sinx = math.sin( self.time )
 		mesh = sliceMesh( mesh_origin ,
-			vec3( 0.0 , 0.0 , 0.0 ) ,
-			vec3( math.sin( self.time ) , 0.0 , math.cos( self.time ) ) )
+			vec3( sinx , 0.0 , cosx ).mul( 0.1 ) ,
+			vec3( -sinx , 0.0 , -cosx ) )
+		mesh = sliceMesh( mesh ,
+			vec3( -sinx , 0.0 , -cosx ).mul( 0.1 ) ,
+			vec3( sinx , 0.0 , cosx ) )
 		self.meshgl.init( self.shader , mesh )
 
 		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 1.0 , 1.0 , 1.0 , 1.0 )
