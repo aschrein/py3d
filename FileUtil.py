@@ -39,7 +39,7 @@ def loadObj( filename ) :
 		i0 = indecies[ i * 3 ]
 		i1 = indecies[  i * 3 + 1 ]
 		i2 = indecies[ i * 3 + 2 ]
-		"""vertecies[ i0 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i2 ] )
+		vertecies[ i0 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i2 ] )
 		vertecies[ i1 ].addNeighbor( vertecies[ i0 ] ).addNeighbor( vertecies[ i2 ] )
-		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )"""
+		vertecies[ i2 ].addNeighbor( vertecies[ i1 ] ).addNeighbor( vertecies[ i0 ] )
 	return VertexMesh( { "position" : 3 , "texcoord" : 2 } , vertecies , indecies )

@@ -2,10 +2,10 @@ from Primitives import *
 class Vertex( object ) :
 	def __init__( self , attributes = [] ) :
 		self.attributes = attributes
-		#self.neighbors = [ ]
-	"""def addNeighbor(self , vertex):
+		self.neighbors = [ ]
+	def addNeighbor(self , vertex):
 		self.neighbors.append(vertex)
-		return self"""
+		return self
 	def getPos(self):
 		return self.attributes[ 0 ]
 	def lerp(self,vertex,x):
@@ -60,6 +60,7 @@ def genCilinder(r) :
 def sliceMesh( mesh , pos , norm ) :
 	faces = []
 	vertecies = set()
+	border_vertecies = []
 	for i in range( 0 , mesh.getFaceCount() ) :
 		face = mesh.getFace( i )
 		above = []
@@ -76,6 +77,8 @@ def sliceMesh( mesh , pos , norm ) :
 				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
 				k1 = above[ 1 ][ 1 ] / ( above[ 1 ][ 1 ] + beneath[ 0 ][ 1 ] )
 				vertex1 = above[ 1 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k1 )
+				border_vertecies.append( vertex0 )
+				border_vertecies.append( vertex1 )
 				faces.append( [ above[ 0 ][ 0 ] , vertex0 , vertex1 ] )
 				faces.append( [ above[ 1 ][ 0 ] , above[ 0 ][ 0 ] , vertex1 ] )
 				vertecies.add( above[ 0 ][ 0 ] )
@@ -87,6 +90,8 @@ def sliceMesh( mesh , pos , norm ) :
 				vertex0 = above[ 0 ][ 0 ].lerp( beneath[ 0 ][ 0 ] , k0 )
 				k1 = above[ 0 ][ 1 ] / ( above[ 0 ][ 1 ] + beneath[ 1 ][ 1 ] )
 				vertex1 = above[ 0 ][ 0 ].lerp( beneath[ 1 ][ 0 ] , k1 )
+				border_vertecies.append( vertex0 )
+				border_vertecies.append( vertex1 )
 				faces.append( [ above[ 0 ][ 0 ] , vertex0 , vertex1 ] )
 				vertecies.add( above[ 0 ][ 0 ] )
 				vertecies.add( vertex0 )

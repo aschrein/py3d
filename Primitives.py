@@ -72,6 +72,18 @@ class Ray :
 	def __init__( self ) :
 		self.p = vec3( )
 		self.v = vec3( )
+class mat4 :
+	def __init__(self,data = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]):
+		self.data = data
+	def mul(self,a):
+		out = []
+		for i in range( 0 , 4 ) :
+			for j in range( 0 , 4 ) :
+				tmp = 0.0
+				for k in range( 0 , 4 ) :
+					tmp += self.data[ i * 4 + k ] * a.data[ k * 4 + j ]
+				out.append( tmp )
+		return mat4( out )
 class Camera :
 	def __init__( self ) :
 		self.p = vec3( )
@@ -80,6 +92,20 @@ class Camera :
 		self.left = vec3( )
 		self.itanx = 1.0
 		self.itany = 1.0
+		self.near = 0.01
+		self.far = 10000.0
+	def getViewProj(self):
+		return mat4( [
+			self.left.x , self.up.x , self.look.x , 0.0 ,
+			self.left.y , self.up.y , self.look.y , 0.0 ,
+			self.left.z , self.up.z , self.look.z , 0.0 ,
+			self.left.dot( self.p ) , self.up.dot( self.p ) , self.look.dot( self.p ) , 1.0
+		] ).mul( mat4( [
+			self.itanx , 0.0 , 0.0 , 0.0 ,
+			0.0 , self.itany , 0.0 , 0.0 ,
+			0.0 , 0.0 , 2.0 , 0.0 ,
+			0.0 , 0.0 , -self.far - self.near , 1.0
+		] ) )
 class Material :
 	def __init__( self ) :
 		self.metallness = 1.0

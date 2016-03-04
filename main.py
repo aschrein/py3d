@@ -24,8 +24,13 @@ void main()
 		0.0 , 1.0 , 0.0 ,
 		-sinx , 0.0 , cosx
 	);
+	mat3 rot_matx = mat3(
+		1.0 , 0.0 , 0.0 ,
+		0.0 , cosx , sinx ,
+		0.0 , -sinx , cosx
+	);
 	frag_texcoord = texcoord;
-	gl_Position = vec4( rot_mat * position * 0.8 , 1.0 );
+	gl_Position = vec4( rot_matx * position * 0.7 , 1.0 );
 }
 """
 
@@ -44,8 +49,6 @@ mesh_origin = loadObj( "lhead.OBJ" )#genCilinder(160)
 class WfWidget( QGLWidget ) :
 	def __init__( self , glformat , parent = None ) :
 		super( WfWidget , self ).__init__( glformat , parent )
-		self.meshgl_origin = MeshGL( )
-		self.meshgl = MeshGL( )
 		self.shader = 0
 		self.time = time.clock()
 		self.dt = 0.0
@@ -61,36 +64,54 @@ class WfWidget( QGLWidget ) :
 		self.updateTime()
 		#self.time = 2.1
 		glUseProgram( self.shader )
-		glUniform1f( glGetUniformLocation( self.shader , "angle" ) , self.time * -0.02 )
+		glUniform1f( glGetUniformLocation( self.shader , "angle" ) , 0.5 )
 
 		import math
-
+		glDepthMask( GL_FALSE )
 		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 1.0 , 1.0 , 1.0 , 0.05 )
-		self.meshgl_origin.draw( "WIRE" )
+		drawMeshGL( self.shader , genCilinder( 8 ) , "WIRE" )
 
 		cosx = math.cos( self.time * 0.1 )
 		sinx = math.sin( self.time * 0.1 )
-		mesh = sliceMesh( mesh_origin ,
-			vec3( 0.0 , sinx , cosx ).mul( 0.01 ) ,
-			vec3( 0.0 , -sinx , -cosx ) )
-		mesh = sliceMesh( mesh ,
+		plane_pos = vec3( 0.0 , 0.5 , 0.0 )
+		plane_tang = vec3( 1.0 , 0.0 , 0.0 )
+		plane_binorm = vec3( 0.0 , -cosx , sinx )
+		plane_norm = vec3( 0.0 , sinx , cosx )
+
+		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 0.0 , 1.0 , 0.0 , 0.1 )
+		drawMeshGL( self.shader , VertexMesh(
+			{ "position" : 3 } ,
+			[
+				Vertex( [ plane_pos.add( plane_binorm ).add( plane_tang ) ] ) ,
+				Vertex( [ plane_pos.add( plane_binorm ).sub( plane_tang ) ] ) ,
+				Vertex( [ plane_pos.sub( plane_binorm ).sub( plane_tang ) ] ) ,
+				Vertex( [ plane_pos.sub( plane_binorm ).add( plane_tang ) ] )
+			] ,
+			[ 0 , 1 , 2 , 0 , 2 , 3] ) ,
+			"FILL" )
+		mesh = sliceMesh( genCilinder( 8 ) ,
+			plane_pos ,
+			plane_norm )
+		"""mesh = sliceMesh( mesh ,
 			vec3( 0.0 , -sinx , -cosx ).mul( 0.01 ) ,
-			vec3( 0.0 , sinx , cosx ) )
-		self.meshgl.release()
-		self.meshgl.init( self.shader , mesh )
+			vec3( 0.0 , sinx , cosx ) )"""
 		glLineWidth( 4.0 )
+		glDepthMask( GL_FALSE )
 		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 0.0 , 0.0 , 0.0 ,1.0 )
-		self.meshgl.draw( "WIRE" )
+		drawMeshGL( self.shader , mesh , "WIRE" )
+		glDepthMask( GL_TRUE )
 		glUniform4f( glGetUniformLocation( self.shader , "color" ) , 1.0 , 0.0 , 0.0 ,1.0 )
-		self.meshgl.draw( "FILL" )
+		drawMeshGL( self.shader , mesh , "FILL" )
+
 
 		self.update()
 
 	def resizeGL( self , w , h ) :
 		glViewport( 0 , 0 , w , h )
 	def initializeGL( self ) :
-		glDisable( GL_DEPTH_TEST )
-		glDepthMask( GL_FALSE )
+		#glDisable( GL_DEPTH_TEST )
+		#glDepthMask( GL_FALSE )
+		glEnable( GL_DEPTH_TEST )
 		glEnable( GL_BLEND )
 		glBlendFunc( GL_SRC_ALPHA , GL_ONE_MINUS_SRC_ALPHA )
 		glEnable( GL_ALPHA_TEST )
@@ -100,8 +121,6 @@ class WfWidget( QGLWidget ) :
 			OpenGL.GL.shaders.compileShader( vertex_shader , GL_VERTEX_SHADER ) ,
 			OpenGL.GL.shaders.compileShader( fragment_shader , GL_FRAGMENT_SHADER )
 		)
-		self.meshgl_origin.init( self.shader , mesh_origin )
-		self.meshgl.init( self.shader , mesh_origin )
 if __name__ == '__main__' :
 	app = QtGui.QApplication( [ "Winfred's PyQt OpenGL" ] )
 	glformat = QGLFormat( )
